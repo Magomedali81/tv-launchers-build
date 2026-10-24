@@ -30,6 +30,8 @@ jobs:
             curl -sS -m 20 -A "VibeLauncher-TVDoctor/1.0 (https://github.com/Magomedali81/tv-launchers-build)" "$u" -o feed.json -w "%{http_code}\n" || true
             python3 -c "import json;i=json.load(open('feed.json')).get('image') or {};print('::notice title=feed $u::', json.dumps({'w':i.get('image',{}).get('width'),'h':i.get('image',{}).get('height'),'thumb':i.get('thumbnail',{}).get('source'),'desc':(i.get('description') or {}).get('text','')[:80]},ensure_ascii=False))" || echo "::warning::feed $u unreadable"
           done
+          t=$(python3 -c "import json,re;s=json.load(open('feed.json'))['image']['thumbnail']['source'].split('?')[0];print(re.sub(r'/(\\d+)px-([^/]+)$', r'/1920px-\\2', s))")
+          for w in 1920 1280; do u=$(echo "$t" | sed "s#/1920px-#/${w}px-#"); c=$(curl -sS -m 30 -A "VibeLauncher-TVDoctor/1.0" -o /dev/null -w "%{http_code} %{size_download} %{content_type}" "$u"); echo "::notice title=thumb ${w}px::$c $u"; done
       - name: Signing key
         env: { KS_B64: "${{ secrets.KEYSTORE_B64 }}", KS_PASS_SECRET: "${{ secrets.KEYSTORE_PASS }}" }
         run: |

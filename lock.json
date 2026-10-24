@@ -38,7 +38,8 @@
     "upload.wikimedia.org",
     "api.wikimedia.org",
     "ru.wikipedia.org",
-    "en.wikipedia.org"
+    "en.wikipedia.org",
+    "thumb.wikimedia.org"
    ],
    "audit": "Исходники проверены вручную: сеть — только обложки фильмов (TMDB, YouTube, Plex, Stremio), проверка обновлений на GitHub (у нашей сборки отключена автоматически — другой ключ). Связь с телефоном — только пока открыты настройки, по одноразовому коду. Наша доработка: обои «Фото дня» Wikimedia Commons, смена каждые 30 минут."
   },

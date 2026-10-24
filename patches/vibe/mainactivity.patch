@@ -1,5 +1,5 @@
 --- a/vibe-launcher/app/src/main/java/com/maydings/vibelauncher/MainActivity.java	2026-10-24 16:25:09.151639157 +0300
-+++ b/vibe-launcher/app/src/main/java/com/maydings/vibelauncher/MainActivity.java	2026-10-24 16:25:09.188172057 +0300
++++ b/vibe-launcher/app/src/main/java/com/maydings/vibelauncher/MainActivity.java	2026-10-24 16:29:07.579765983 +0300
 @@ -181,6 +181,7 @@
      private ImageView backdropLogo;
      private TextView backdropTitle;
@@ -65,9 +65,9 @@
 +                    showBackdropTitle(null, credit);   // already showing it: no cross-fade into itself
 +                    return;
 +                }
-+                bitmap = wall;
-+                logo = null;
-+                title = credit;
++                fadeBackdrop(wall, null, credit, color);
++                stillShown = false;   // a wallpaper, not the app's own still
++                return;
 +            }
 +        }
 +        if (bitmap == null) {

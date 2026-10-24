@@ -59,7 +59,7 @@ final class Wallpapers {
             "https://en.wikipedia.org/api/rest_v1/feed/featured/",
             "https://api.wikimedia.org/feed/v1/wikipedia/en/featured/",
     };
-    private static final String IMAGE_HOST = "https://upload.wikimedia.org/";
+    private static final String[] IMAGE_HOSTS = {"https://upload.wikimedia.org/", "https://thumb.wikimedia.org/"};
     private static final Map<String, String> HEADERS = new HashMap<>();
 
     static {
@@ -266,15 +266,31 @@ final class Wallpapers {
         int ow = original.optInt("width"), oh = original.optInt("height");
         if (ow < 1280 || oh <= 0 || ow < oh * 5 / 4) return false;   // a portrait or square picture: skipped
         int want = width > 1280 ? 1920 : 1280;
-        String url;
-        if (ow <= want) {
-            url = original.optString("source");
-        } else {
-            url = thumb.optString("source").replaceFirst("/(lossy-page1-|page1-)?\\d+px-([^/]+)$",
-                    "/$1" + want + "px-$2");
+        // Thumbnails come from thumb.wikimedia.org (formerly upload.wikimedia.org), at a standard width
+        // (960, 1280, 1920...), with tracking parameters on the end that we drop.
+        String thumbUrl = thumb.optString("source").replaceFirst("[?#].*$", "");
+        List<String> urls = new ArrayList<>();
+        for (int w : new int[]{want, 1280, 960}) {
+            if (w > ow) continue;
+            String u = thumbUrl.replaceFirst("/(lossy-page1-|page1-)?\\d+px-([^/]+)$", "/$1" + w + "px-$2");
+            if (!urls.contains(u)) urls.add(u);
         }
-        if (!url.startsWith(IMAGE_HOST)) return false;
-        byte[] data = Http.get(url, Collections.singletonMap("User-Agent", HEADERS.get("User-Agent")), MAX_IMAGE);
+        if (ow <= want) urls.add(0, original.optString("source").replaceFirst("[?#].*$", ""));
+        byte[] data = null;
+        IOException failed = null;
+        for (String url : urls) {
+            if (!allowedImage(url)) continue;
+            try {
+                data = Http.get(url, Collections.singletonMap("User-Agent", HEADERS.get("User-Agent")), MAX_IMAGE);
+                break;
+            } catch (IOException e) {
+                failed = e;
+            }
+        }
+        if (data == null) {
+            if (failed != null) throw failed;
+            return false;
+        }
         Bitmap cut = cropToScreen(data);
         if (cut == null) return false;
         File tmp = new File(dir, out.getName() + ".tmp");
@@ -286,6 +302,11 @@ final class Wallpapers {
         if (!tmp.renameTo(out)) throw new IOException("rename");
         writeCredit(out, caption(image));
         return true;
+    }
+
+    private static boolean allowedImage(String url) {
+        for (String h : IMAGE_HOSTS) if (url.startsWith(h)) return true;
+        return false;
     }
 
     /** The description's first sentence, short enough for the corner, else the author. */
