@@ -9,13 +9,16 @@ rm -rf src && git init -q src && cd src
 git remote add origin "https://github.com/$REPO" && git fetch -q --depth 1 origin "$COMMIT" && git checkout -q FETCH_HEAD
 test "$(git rev-parse HEAD)" = "$COMMIT" || { echo "Коммит не совпал"; exit 1; }
 cd "$DIR"
+# Отладочный ключ, который ждут некоторые проекты (итоговый APK всё равно переподписывается нашим ключом)
+for d in "$HOME/.android" "$HOME/.config/.android"; do
+  mkdir -p "$d"; [ -f "$d/debug.keystore" ] || keytool -genkeypair -keystore "$d/debug.keystore" -storepass android -keypass android -alias androiddebugkey -dname "CN=Android Debug,O=Android,C=US" -keyalg RSA -keysize 2048 -validity 10000 >/dev/null 2>&1
+done
 if [ "$KIND" = "gradle" ]; then
   [ -n "$PREP" ] && bash -c "$PREP"
   # Не используем gradle-wrapper.jar из чужого репозитория — только официальный Gradle.
   gradle --no-daemon -q ":$MOD:assembleRelease"
   APK=$(ls "$MOD"/build/outputs/apk/release/*.apk | head -1)
 else
-  mkdir -p "$HOME/.android"; [ -f "$HOME/.android/debug.keystore" ] || keytool -genkeypair -q -keystore "$HOME/.android/debug.keystore" -storepass android -keypass android -alias androiddebugkey -dname "CN=Android Debug" -keyalg RSA -validity 10000
   bash "$(J script)"
   APK="$(J out)"
 fi
