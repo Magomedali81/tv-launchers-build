@@ -36,7 +36,22 @@ jobs:
       - name: Build + scan
         env:
           KS_FILE: ${{ runner.temp }}/ks.jks
-        run: scripts/build_one.sh ${{ matrix.id }}
+        run: |
+          set -o pipefail
+          if scripts/build_one.sh ${{ matrix.id }} 2>&1 | tee build.log; then
+            python3 - <<'PY'
+          import json
+          r = json.load(open("out/${{ matrix.id }}.report.json"))
+          msg = "ПРОВЕРКА ПРОЙДЕНА: %s | разрешения: %s | адреса: %s | нативный код: %s | %s" % (
+              r["name"], ", ".join(p.replace("android.permission.", "") for p in r["permissions"]) or "нет",
+              ", ".join(r["hosts"]) or "нет", "есть" if r["native_libs"] else "нет",
+              "; ".join("%s: %s" % kv for kv in r["checks"].items()))
+          print("::notice title=${{ matrix.id }}::" + msg)
+          PY
+          else
+            tail -n 60 build.log | python3 -c "import sys;print('::error title=${{ matrix.id }} build::' + sys.stdin.read().replace('%','%25').replace('\r','').replace('\n','%0A'))"
+            exit 1
+          fi
       - uses: actions/upload-artifact@v4
         if: always()
         with: { name: "${{ matrix.id }}", path: "out/", if-no-files-found: ignore }
