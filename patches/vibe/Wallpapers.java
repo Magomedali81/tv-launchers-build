@@ -32,7 +32,7 @@ import java.util.concurrent.Executors;
 
 /**
  * Wallpapers behind Home when the focused app has no still of its own: Wikimedia Commons' "Picture of the
- * day" for the last two weeks, changing every 30 minutes.
+ * day" for the last month, changing every 10 minutes.
  *
  * Only landscape pictures are kept. Each is downloaded once at the screen's size from upload.wikimedia.org,
  * cut to the screen and saved as JPEG; the darkening gradient (the same one as the app stills) is applied
@@ -44,14 +44,14 @@ import java.util.concurrent.Executors;
 final class Wallpapers {
 
     interface Listener {
-        /** A new picture is ready (first download, or the 30-minute change). Main thread. */
+        /** A new picture is ready (first download, or the 10-minute change). Main thread. */
         void onWallpaper();
     }
 
-    static final long SLOT_MS = 30L * 60 * 1000;
+    static final long SLOT_MS = 10L * 60 * 1000;
     private static final long REFRESH_MS = 6L * 60 * 60 * 1000;
     private static final long RETRY_MS = 15L * 60 * 1000;
-    private static final int DAYS = 14;
+    private static final int DAYS = 30;
     private static final int MAX_JSON = 2 * 1024 * 1024;
     private static final int MAX_IMAGE = 12 * 1024 * 1024;
     private static final String[] FEEDS = {
@@ -106,7 +106,7 @@ final class Wallpapers {
         height = Math.min(w, h);
     }
 
-    /** Home is on screen: refresh if due, get the current picture ready and follow the 30-minute changes. */
+    /** Home is on screen: refresh if due, get the current picture ready and follow the 10-minute changes. */
     void start() {
         if (closed) return;
         started = true;

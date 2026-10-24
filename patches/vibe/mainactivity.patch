@@ -1,5 +1,5 @@
 --- a/vibe-launcher/app/src/main/java/com/maydings/vibelauncher/MainActivity.java	2026-10-24 16:25:09.151639157 +0300
-+++ b/vibe-launcher/app/src/main/java/com/maydings/vibelauncher/MainActivity.java	2026-10-24 16:29:07.579765983 +0300
++++ b/vibe-launcher/app/src/main/java/com/maydings/vibelauncher/MainActivity.java	2026-10-24 16:53:07.474377974 +0300
 @@ -181,6 +181,7 @@
      private ImageView backdropLogo;
      private TextView backdropTitle;
@@ -13,8 +13,8 @@
          backdropLogo = findViewById(R.id.backdropLogo);
          backdropTitle = findViewById(R.id.backdropTitle);
 +        wallpapers = new Wallpapers(this, () -> {
-+            // A new wallpaper (first one, or the 30-minute change): show it if the glow is up.
-+            if (heroShown && !stillShown) fadeBackdrop(null, null, null, backdropColor);
++            // A new wallpaper (first one, or the 10-minute change): it replaces whatever is behind Home.
++            if (heroShown || slideshow) fadeBackdrop(null, null, null, backdropColor);
 +        });
          backdrops = new Backdrops(this, pkg -> {
              // The focused app was on its glow, waiting for its first still: show it now.
@@ -51,13 +51,26 @@
          adapter.clear();
          // Detached too: with Home stopped no layout pass runs, so the tile views (and the banners they
          // hold) would stay until Home came back. setAdapter(null) recycles them now.
-@@ -850,6 +859,22 @@
+@@ -838,6 +847,11 @@
+         if (pkg.equals(backdropPkg)) return;
+         backdropPkg = pkg;
+         backdropColor = color;
++        if (wallpapers.current() != null) {   // TV Doctor: wallpapers instead of the app's stills
++            backdropLink = null;
++            fadeBackdrop(null, null, null, color);
++            return;
++        }
+         backdrops.load(pkg, (loaded, bitmap, logo, title, link) -> {
+             if (!heroShown || !loaded.equals(backdropPkg)) return;   // moved on while it loaded
+             backdropLink = bitmap != null ? link : null;
+@@ -849,6 +863,22 @@
+     /** Shows a still (cross-fading from the one before, if any), or the glow in this colour. */
      private void fadeBackdrop(Bitmap bitmap, Bitmap logo, String title, int color) {
          stillShown = bitmap != null;
-         if (bitmap == null) {
-+            // TV Doctor: no still of its own -> the Picture of the day instead of the plain glow.
++        {
++            // TV Doctor: always the Picture of the day (not the apps' trailers and posters) once one is in.
 +            Bitmap wall = wallpapers.current();
-+            if (wall != null) {
++            if (wall != null && bitmap != wall) {
 +                String credit = wallpapers.credit();
 +                if (backdrop.getAlpha() == 1f && backdropImage.getDrawable() instanceof android.graphics.drawable.BitmapDrawable
 +                        && ((android.graphics.drawable.BitmapDrawable) backdropImage.getDrawable()).getBitmap() == wall) {
@@ -70,7 +83,6 @@
 +                return;
 +            }
 +        }
-+        if (bitmap == null) {
+         if (bitmap == null) {
              backdrop.animate().alpha(0f).setDuration(300).withLayer().start();
              if (ambient.getAlpha() > 0f && color != ambientColor) {
-                 // Glow to glow: dip, change colour, come back.
