@@ -312,7 +312,8 @@ final class Wallpapers {
         List<String> urls = new ArrayList<>();
         for (int w : new int[]{want, 1280, 960}) {
             if (w > ow) continue;
-            String u = thumbUrl.replaceFirst("/(lossy-page1-|page1-)?\\d+px-([^/]+)$", "/$1" + w + "px-$2");
+            String u = thumbAt(thumbUrl, w);
+            if (u == null) continue;
             if (!urls.contains(u)) urls.add(u);
         }
         if (ow <= want) urls.add(0, original.optString("source").replaceFirst("[?#].*$", ""));
@@ -342,6 +343,19 @@ final class Wallpapers {
         if (!tmp.renameTo(out)) throw new IOException("rename");
         writeCredit(out, caption(image));
         return true;
+    }
+
+    private static final java.util.regex.Pattern THUMB =
+            java.util.regex.Pattern.compile("^(.*/(?:lossy-page1-|page1-)?)\\d+px-([^/]+)$");
+
+    /**
+     * The thumbnail's address at another width. Built by hand: Android's regex replacement writes "null"
+     * for an optional group that didn't match ("/null1920px-..."), which Wikimedia answers with HTTP 400.
+     */
+    static String thumbAt(String url, int width) {
+        java.util.regex.Matcher m = THUMB.matcher(url);
+        if (!m.matches()) return null;
+        return m.group(1) + width + "px-" + m.group(2);
     }
 
     private static boolean allowedImage(String url) {

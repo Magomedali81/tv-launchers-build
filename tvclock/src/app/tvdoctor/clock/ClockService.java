@@ -42,7 +42,7 @@ public class ClockService extends Service {
     private WindowManager wm;
     private LinearLayout box;
     private TextView big, small;
-    private LinearLayout row;
+    private LinearLayout row, row2;
     private VpnDot vpn;
     private ConnectivityManager cm;
     private final Handler main = new Handler(Looper.getMainLooper());
@@ -100,8 +100,12 @@ public class ClockService extends Service {
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
         row.addView(big);
+        row2 = new LinearLayout(this);
+        row2.setOrientation(LinearLayout.HORIZONTAL);
+        row2.setGravity(Gravity.CENTER_VERTICAL);
+        row2.addView(small);
         box.addView(row);
-        box.addView(small);
+        box.addView(row2);
         cm = getSystemService(ConnectivityManager.class);
         try {
             cm.registerNetworkCallback(new NetworkRequest.Builder()
@@ -150,7 +154,7 @@ public class ClockService extends Service {
         float density = getResources().getDisplayMetrics().density;
         big.setShadowLayer(bigSp * density * 0.18f, 0, bigSp * density * 0.06f, 0xB0000000);
         small.setShadowLayer(smallSp * density * 0.22f, 0, smallSp * density * 0.07f, 0xB0000000);
-        small.setVisibility("time".equals(prefs.mode) ? View.GONE : View.VISIBLE);
+        row2.setVisibility("time".equals(prefs.mode) ? View.GONE : View.VISIBLE);
 
         boolean right = prefs.corner.endsWith("r");
         boolean bottom = prefs.corner.startsWith("b");
@@ -159,13 +163,18 @@ public class ClockService extends Service {
         big.setGravity(h);
         small.setGravity(h);
         box.setAlpha(prefs.alpha / 100f);
-        // Кружок VPN — с внутренней стороны от первой строки
-        row.removeView(vpn);
-        int dotPx = Math.round(bigSp * getResources().getDisplayMetrics().scaledDensity * 0.5f);
+        // Кружок VPN: строка (верхняя/нижняя), сторона (слева/справа от текста), размер в % высоты строки
+        ((LinearLayout) row).removeView(vpn);
+        row2.removeView(vpn);
+        boolean lower = "small".equals(prefs.dotRow) && !"time".equals(prefs.mode);
+        float lineSp = lower ? smallSp : bigSp;
+        int dotPx = Math.max(4, Math.round(lineSp * getResources().getDisplayMetrics().scaledDensity * prefs.dotSize / 100f));
         LinearLayout.LayoutParams ip = new LinearLayout.LayoutParams(dotPx, dotPx);
-        int gap = Math.round(dotPx * 0.45f);
-        if (right) ip.rightMargin = gap; else ip.leftMargin = gap;
-        row.addView(vpn, right ? 0 : 1, ip);
+        int gap = Math.round(Math.max(dotPx * 0.45f, lineSp * 0.15f * density));
+        boolean dotLeft = "l".equals(prefs.dotSide);
+        if (dotLeft) ip.rightMargin = gap; else ip.leftMargin = gap;
+        LinearLayout target = lower ? row2 : row;
+        target.addView(vpn, dotLeft ? 0 : target.getChildCount(), ip);
 
         DisplayMetrics dm = getResources().getDisplayMetrics();
         WindowManager.LayoutParams lp = new WindowManager.LayoutParams(

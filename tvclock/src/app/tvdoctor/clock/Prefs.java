@@ -14,7 +14,10 @@ final class Prefs {
     final int alpha;     // непрозрачность, %: 20..100
     final String mode;   // date | time | datetime
     final boolean enabled;
-    final boolean vpn;   // кружок состояния VPN: зелёный/красный
+    final boolean vpn;
+    final String dotSide;  // l | r — слева или справа от текста
+    final String dotRow;   // big | small — у верхней или нижней строки
+    final int dotSize;     // % высоты строки: 20..100   // кружок состояния VPN: зелёный/красный
 
     private Prefs(SharedPreferences p) {
         corner = oneOf(p.getString("corner", "tr"), CORNERS, "tr");
@@ -23,6 +26,9 @@ final class Prefs {
         mode = oneOf(p.getString("mode", "date"), MODES, "date");
         enabled = p.getBoolean("enabled", false);
         vpn = p.getBoolean("vpn", true);
+        dotSide = oneOf(p.getString("dotSide", "l"), new String[]{"l", "r"}, "l");
+        dotRow = oneOf(p.getString("dotRow", "big"), new String[]{"big", "small"}, "big");
+        dotSize = clamp(p.getInt("dotSize", 50), 20, 100);
     }
 
     static Prefs load(Context c) {

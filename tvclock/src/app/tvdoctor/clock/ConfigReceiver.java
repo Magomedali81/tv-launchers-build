@@ -8,7 +8,7 @@ import android.content.SharedPreferences;
 /**
  * Принимает настройки от TV Doctor:
  *   am broadcast -a app.tvdoctor.clock.CONFIG -n app.tvdoctor.clock/.ConfigReceiver -f 0x20
- *       --es corner tr --ei size 28 --ei alpha 90 --es mode date --ez vpn true
+ *       --es corner tr --ei size 28 --ei alpha 90 --es mode date --ez vpn true --es dotSide l --es dotRow big --ei dotSize 50
  *   am broadcast -a app.tvdoctor.clock.HIDE -n app.tvdoctor.clock/.ConfigReceiver -f 0x20
  * Защищён разрешением DUMP: отправить может только ADB, не другие приложения.
  */
@@ -26,6 +26,9 @@ public class ConfigReceiver extends BroadcastReceiver {
         if (i.hasExtra("mode")) e.putString("mode", Prefs.oneOf(i.getStringExtra("mode"), Prefs.MODES, "date"));
         if (i.hasExtra("size")) e.putInt("size", Prefs.clamp(i.getIntExtra("size", 28), 14, 72));
         if (i.hasExtra("alpha")) e.putInt("alpha", Prefs.clamp(i.getIntExtra("alpha", 90), 20, 100));
+        if (i.hasExtra("dotSide")) e.putString("dotSide", Prefs.oneOf(i.getStringExtra("dotSide"), new String[]{"l", "r"}, "l"));
+        if (i.hasExtra("dotRow")) e.putString("dotRow", Prefs.oneOf(i.getStringExtra("dotRow"), new String[]{"big", "small"}, "big"));
+        if (i.hasExtra("dotSize")) e.putInt("dotSize", Prefs.clamp(i.getIntExtra("dotSize", 50), 20, 100));
         if (i.hasExtra("vpn")) e.putBoolean("vpn", i.getBooleanExtra("vpn", true));
         e.putBoolean("enabled", true).commit();
         c.startForegroundService(new Intent(c, ClockService.class));
