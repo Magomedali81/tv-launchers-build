@@ -1,5 +1,5 @@
 --- a/vibe-launcher/app/src/main/java/com/maydings/vibelauncher/MainActivity.java	2026-10-24 16:25:09.151639157 +0300
-+++ b/vibe-launcher/app/src/main/java/com/maydings/vibelauncher/MainActivity.java	2026-10-24 17:34:00.204637572 +0300
++++ b/vibe-launcher/app/src/main/java/com/maydings/vibelauncher/MainActivity.java	2026-10-24 17:57:57.274382151 +0300
 @@ -181,6 +181,7 @@
      private ImageView backdropLogo;
      private TextView backdropTitle;
@@ -8,18 +8,19 @@
      /** The dock app whose backdrop is showing or loading, or null. */
      private String backdropPkg;
      private TextView btnWifi;
-@@ -319,6 +320,10 @@
+@@ -319,6 +320,11 @@
          backdropTitleBox = findViewById(R.id.backdropTitleBox);
          backdropLogo = findViewById(R.id.backdropLogo);
          backdropTitle = findViewById(R.id.backdropTitle);
 +        wallpapers = new Wallpapers(this, () -> {
 +            // A new wallpaper (first one, or the 10-minute change): it replaces whatever is behind Home.
 +            if (heroShown || slideshow) fadeBackdrop(null, null, null, backdropColor);
++            else wallpaperBase();
 +        });
          backdrops = new Backdrops(this, pkg -> {
              // The focused app was on its glow, waiting for its first still: show it now.
              if (!heroShown || !pkg.equals(backdropPkg)) return;
-@@ -541,6 +546,7 @@
+@@ -541,6 +547,7 @@
      @Override
      protected void onResume() {
          super.onResume();
@@ -27,7 +28,17 @@
          lastKeyAt = SystemClock.uptimeMillis();
          armIdle();
          showUpdateReady();
-@@ -614,6 +620,7 @@
+@@ -599,6 +606,9 @@
+         backdropPkg = null;
+         backdrop.setAlpha(0f);
+         stillShown = false;
++        handler.postDelayed(() -> {   // TV Doctor: focus came back to the grid, not the dock: the wallpaper anyway
++            if (!heroShown) wallpaperBase();
++        }, 400);
+         backdrops.reshuffle();
+         grid.scheduleLayoutAnimation();
+         grid.requestLayout();   // reload() only touches changed tiles, so ask for the pass that plays the entrance
+@@ -614,6 +624,7 @@
      @Override
      protected void onPause() {
          super.onPause();
@@ -35,7 +46,7 @@
          handler.removeCallbacks(refreshPools);
          cancelPictureSoon();
          handler.removeCallbacks(startSlideshow);
-@@ -647,6 +654,7 @@
+@@ -647,6 +658,7 @@
          unregisterReceiver(screenReceiver);
          unregisterReceiver(packageReceiver);
          backdrops.close();
@@ -43,7 +54,7 @@
          handler.removeCallbacksAndMessages(null);
          ConnectivityManager cm = getSystemService(ConnectivityManager.class);
          if (cm != null) {
-@@ -671,6 +679,7 @@
+@@ -671,6 +683,7 @@
          boolean due = level >= TRIM_MEMORY_BACKGROUND
                  || level == TRIM_MEMORY_RUNNING_LOW || level == TRIM_MEMORY_RUNNING_CRITICAL;
          if (!due || started) return;
@@ -51,7 +62,7 @@
          adapter.clear();
          // Detached too: with Home stopped no layout pass runs, so the tile views (and the banners they
          // hold) would stay until Home came back. setAdapter(null) recycles them now.
-@@ -838,6 +847,11 @@
+@@ -838,6 +851,11 @@
          if (pkg.equals(backdropPkg)) return;
          backdropPkg = pkg;
          backdropColor = color;
@@ -63,7 +74,7 @@
          backdrops.load(pkg, (loaded, bitmap, logo, title, link) -> {
              if (!heroShown || !loaded.equals(backdropPkg)) return;   // moved on while it loaded
              backdropLink = bitmap != null ? link : null;
-@@ -849,6 +863,26 @@
+@@ -849,6 +867,28 @@
      /** Shows a still (cross-fading from the one before, if any), or the glow in this colour. */
      private void fadeBackdrop(Bitmap bitmap, Bitmap logo, String title, int color) {
          stillShown = bitmap != null;
@@ -79,6 +90,8 @@
 +                if (backdrop.getAlpha() == 1f && backdropImage.getDrawable() instanceof android.graphics.drawable.BitmapDrawable
 +                        && ((android.graphics.drawable.BitmapDrawable) backdropImage.getDrawable()).getBitmap() == wall) {
 +                    ambient.animate().alpha(0f).setDuration(300).start();
++                    backdrop.animate().cancel();
++                    backdrop.animate().alpha(1f).setDuration(200).start();   // in case it was fading out
 +                    showBackdropTitle(null, credit);   // already showing it: no cross-fade into itself
 +                    return;
 +                }
@@ -90,7 +103,33 @@
          if (bitmap == null) {
              backdrop.animate().alpha(0f).setDuration(300).withLayer().start();
              if (ambient.getAlpha() > 0f && color != ambientColor) {
-@@ -1507,6 +1541,7 @@
+@@ -917,6 +957,25 @@
+         ambient.animate().alpha(0f).setDuration(300).start();
+         backdrop.animate().alpha(0f).setDuration(300).withLayer().start();
+         backdropPkg = null;
++        wallpaperBase();   // TV Doctor: the wallpaper stays behind the grid and the top bar
++    }
++
++    /** TV Doctor: the wallpaper behind Home when no app is focused in the dock (no caption then). */
++    private void wallpaperBase() {
++        Bitmap wall = wallpapers.current();
++        if (wall == null || slideshow) return;
++        if (!(backdropImage.getDrawable() instanceof android.graphics.drawable.BitmapDrawable)
++                || ((android.graphics.drawable.BitmapDrawable) backdropImage.getDrawable()).getBitmap() != wall) {
++            backdropImage.animate().cancel();
++            backdropImage.setAlpha(1f);
++            backdropImage.setImageBitmap(wall);
++        }
++        backdropPrevious.setImageDrawable(null);
++        backdropPrevious.setVisibility(View.GONE);
++        backdropTitleBox.animate().cancel();
++        backdropTitleBox.setAlpha(0f);
++        backdrop.animate().cancel();
++        backdrop.animate().alpha(1f).setDuration(300).start();
+     }
+ 
+     private void hideGlass() {
+@@ -1507,6 +1566,7 @@
              return;
          }
          slideshow = true;
@@ -98,7 +137,7 @@
          slidePkg = backdropPkg;
          slideEntry = null;
          glass.animate().alpha(0f).setDuration(CARET_FADE_MS).start();
-@@ -1527,6 +1562,10 @@
+@@ -1527,6 +1587,10 @@
  
      private void nextSlide() {
          if (!slideshow) return;
@@ -109,7 +148,7 @@
          backdrops.randomSlide(dockApps(), slideEntry, (pkg, entry, bitmap, logo) -> {
              if (!slideshow) return;
              slidePkg = pkg;
-@@ -1542,6 +1581,7 @@
+@@ -1542,6 +1606,7 @@
       */
      private void endSlideshow() {
          slideshow = false;
