@@ -5,10 +5,16 @@ ID="$1"; ROOT="$(pwd)"
 J() { python3 -c "import json,sys;l={x['id']:x for x in json.load(open('lock.json'))['launchers']}['$ID'];print(l.get('$1',''))"; }
 REPO=$(J repo); COMMIT=$(J commit); KIND=$(J build); DIR=$(J dir); MOD=$(J module); PREP=$(J prep); SCRIPT=$(J script); OUT=$(J out)
 BT="$ANDROID_HOME/build-tools/36.0.0"
-rm -rf src && git init -q src && cd src
-git remote add origin "https://github.com/$REPO" && git fetch -q --depth 1 origin "$COMMIT" && git checkout -q FETCH_HEAD
-test "$(git rev-parse HEAD)" = "$COMMIT" || { echo "Коммит не совпал"; exit 1; }
-cd "$DIR"
+rm -rf src
+if [ "$REPO" = "local" ]; then
+  # Собственный код из этого репозитория
+  mkdir -p src && cp -r "$ROOT/$DIR/." src/ && DIR="." && cd src
+else
+  git init -q src && cd src
+  git remote add origin "https://github.com/$REPO" && git fetch -q --depth 1 origin "$COMMIT" && git checkout -q FETCH_HEAD
+  test "$(git rev-parse HEAD)" = "$COMMIT" || { echo "Коммит не совпал"; exit 1; }
+  cd "$DIR"
+fi
 # Отладочный ключ, который ждут некоторые проекты (итоговый APK всё равно переподписывается нашим ключом)
 for d in "$HOME/.android" "$HOME/.config/.android"; do
   mkdir -p "$d"; [ -f "$d/debug.keystore" ] || keytool -genkeypair -keystore "$d/debug.keystore" -storepass android -keypass android -alias androiddebugkey -dname "CN=Android Debug,O=Android,C=US" -keyalg RSA -keysize 2048 -validity 10000 >/dev/null 2>&1

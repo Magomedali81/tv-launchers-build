@@ -2,36 +2,78 @@
  "_comment": "Каждый лаунчер собирается из закреплённого коммита, исходники которого проверены вручную. Обновление версии = новый аудит + новый commit здесь.",
  "launchers": [
   {
-   "id": "cosyhome", "name": "Cosy Home", "pkg": "com.cosyhome.tv",
-   "repo": "oliverjwroberts/cosy-home-tv", "commit": "83bf90877dfc0fbbc1b36bd5da4822b23cd51b80",
-   "build": "gradle", "dir": ".", "module": "app", "prep": "cp cosy.defaults.properties cosy.properties",
-   "perms": ["android.permission.INTERNET"],
-   "hosts": ["api.open-meteo.com"],
+   "id": "cosyhome",
+   "name": "Cosy Home",
+   "pkg": "com.cosyhome.tv",
+   "repo": "oliverjwroberts/cosy-home-tv",
+   "commit": "83bf90877dfc0fbbc1b36bd5da4822b23cd51b80",
+   "build": "gradle",
+   "dir": ".",
+   "module": "app",
+   "prep": "cp cosy.defaults.properties cosy.properties",
+   "perms": [
+    "android.permission.INTERNET"
+   ],
+   "hosts": [
+    "api.open-meteo.com"
+   ],
    "audit": "Сеть: только погода api.open-meteo.com (координаты с точностью ~1 км, по умолчанию не заданы — запросов нет). Нет служб, приёмников, сбора данных."
   },
   {
-   "id": "myo", "name": "MYO Launcher", "pkg": "com.faustino.simplehome",
-   "repo": "faustinoaq/myo-launcher", "commit": "2a0858c7e4e433f3e2aed990eb9280eae5493b31",
-   "build": "script", "dir": ".", "script": "build.sh", "out": "build/simplehome.apk",
-   "perms": ["android.permission.ACCESS_NETWORK_STATE", "android.permission.MANAGE_EXTERNAL_STORAGE"],
+   "id": "myo",
+   "name": "MYO Launcher",
+   "pkg": "com.faustino.simplehome",
+   "repo": "faustinoaq/myo-launcher",
+   "commit": "2a0858c7e4e433f3e2aed990eb9280eae5493b31",
+   "build": "script",
+   "dir": ".",
+   "script": "build.sh",
+   "out": "build/simplehome.apk",
+   "perms": [
+    "android.permission.ACCESS_NETWORK_STATE",
+    "android.permission.MANAGE_EXTERNAL_STORAGE"
+   ],
    "hosts": [],
    "audit": "Нет разрешения на интернет — передать данные наружу не может. Доступ к уведомлениям — только чтобы показать их списком на экране. Поиск файлов локальный."
   },
   {
-   "id": "cleantv", "name": "CleanTV", "pkg": "dev.ntsv.cleantv",
-   "repo": "0x006E/cleantv", "commit": "363e7c9cb64f27ae45a6d1b6a086e1b18c356d11",
-   "build": "gradle", "dir": "tv-launcher", "module": "app", "prep": "",
-   "perms": ["android.permission.INTERNET", "android.permission.ACCESS_NETWORK_STATE", "android.permission.ACCESS_WIFI_STATE", "android.permission.REQUEST_INSTALL_PACKAGES", "android.permission.ACCESS_FINE_LOCATION"],
-   "hosts": ["sensara-static-files.sensara.tv", "api.github.com"],
-   "audit": "Вредоносного кода нет. Служба спец. возможностей только перехватывает кнопки пульта (без чтения экрана). Открывает в домашней сети порт 8090 для пульта-телефона: опасные команды только после сопряжения по PIN. Самообновление с GitHub автора — только по кнопке. Заточен под ИК-передатчик Xiaomi и индийские ТВ-приставки."
-  },
-  {
-   "id": "glassos", "name": "glassOS-tv", "pkg": "com.gathin.tvhome",
-   "repo": "jmarknavarro/glassOS-tv", "commit": "913847bb567d14b4848d987cdfd5a31b7fd4a4ae",
-   "build": "gradle", "dir": "launcher", "module": "app", "prep": "",
-   "perms": ["android.permission.ACCESS_NETWORK_STATE", "android.permission.ACCESS_WIFI_STATE", "android.permission.ACCESS_FINE_LOCATION", "android.permission.BLUETOOTH", "android.permission.BLUETOOTH_CONNECT", "android.permission.WRITE_SECURE_SETTINGS"],
+   "id": "glassos",
+   "name": "glassOS-tv",
+   "pkg": "com.gathin.tvhome",
+   "repo": "jmarknavarro/glassOS-tv",
+   "commit": "913847bb567d14b4848d987cdfd5a31b7fd4a4ae",
+   "build": "gradle",
+   "dir": "launcher",
+   "module": "app",
+   "prep": "",
+   "perms": [
+    "android.permission.ACCESS_NETWORK_STATE",
+    "android.permission.ACCESS_WIFI_STATE",
+    "android.permission.ACCESS_FINE_LOCATION",
+    "android.permission.BLUETOOTH",
+    "android.permission.BLUETOOTH_CONNECT",
+    "android.permission.WRITE_SECURE_SETTINGS"
+   ],
    "hosts": [],
    "audit": "Нет разрешения на интернет. Служба спец. возможностей только перехватывает кнопки «Домой»/«Настройки» (без чтения экрана). Геолокация — системное требование, чтобы показать имя Wi-Fi сети."
+  },
+  {
+   "id": "tvclock",
+   "name": "TV Clock",
+   "pkg": "app.tvdoctor.clock",
+   "repo": "local",
+   "commit": "",
+   "build": "script",
+   "dir": "tvclock",
+   "script": "build.sh",
+   "out": "build/tvclock.apk",
+   "perms": [
+    "android.permission.SYSTEM_ALERT_WINDOW",
+    "android.permission.RECEIVE_BOOT_COMPLETED",
+    "android.permission.FOREGROUND_SERVICE"
+   ],
+   "hosts": [],
+   "audit": "Собственный код (папка tvclock этого репозитория). Нет интернета. Окно поверх экрана с датой/временем, обновление раз в минуту. Настройки принимает только от ADB (защита разрешением DUMP)."
   }
  ]
 }
