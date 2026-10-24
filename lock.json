@@ -2,6 +2,47 @@
  "_comment": "Каждый лаунчер собирается из закреплённого коммита, исходники которого проверены вручную. Обновление версии = новый аудит + новый commit здесь.",
  "launchers": [
   {
+   "id": "vibe",
+   "name": "Vibe Launcher",
+   "pkg": "com.maydings.vibelauncher",
+   "repo": "maydings/vibe-launcher",
+   "commit": "408c5c06c85f9e9ec4d96a171e1351e75095ef5d",
+   "build": "gradle",
+   "dir": "vibe-launcher",
+   "module": "app",
+   "prep": "",
+   "patch": "patches/vibe",
+   "patch_src": "vibe-launcher/app/src/main/java/com/maydings/vibelauncher",
+   "perms": [
+    "android.permission.ACCESS_NETWORK_STATE",
+    "android.permission.READ_TV_LISTINGS",
+    "android.permission.INTERNET",
+    "android.permission.ACCESS_WIFI_STATE",
+    "android.permission.ACCESS_FINE_LOCATION",
+    "android.permission.ACCESS_COARSE_LOCATION",
+    "android.permission.REQUEST_DELETE_PACKAGES",
+    "android.permission.REQUEST_INSTALL_PACKAGES",
+    "android.permission.KILL_BACKGROUND_PROCESSES"
+   ],
+   "hosts": [
+    "i.ytimg.com",
+    "api.github.com",
+    "v3-cinemeta.strem.io",
+    "image.tmdb.org",
+    "api.hdhomerun.com",
+    "www.youtube.com",
+    "www.googleapis.com",
+    "plex.tv",
+    "images.metahub.space",
+    "api.themoviedb.org",
+    "upload.wikimedia.org",
+    "api.wikimedia.org",
+    "ru.wikipedia.org",
+    "en.wikipedia.org"
+   ],
+   "audit": "Исходники проверены вручную: сеть — только обложки фильмов (TMDB, YouTube, Plex, Stremio), проверка обновлений на GitHub (у нашей сборки отключена автоматически — другой ключ). Связь с телефоном — только пока открыты настройки, по одноразовому коду. Наша доработка: обои «Фото дня» Wikimedia Commons, смена каждые 30 минут."
+  },
+  {
    "id": "cosyhome",
    "name": "Cosy Home",
    "pkg": "com.cosyhome.tv",

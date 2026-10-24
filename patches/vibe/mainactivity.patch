@@ -1,0 +1,76 @@
+--- a/vibe-launcher/app/src/main/java/com/maydings/vibelauncher/MainActivity.java	2026-10-24 16:25:09.151639157 +0300
++++ b/vibe-launcher/app/src/main/java/com/maydings/vibelauncher/MainActivity.java	2026-10-24 16:25:09.188172057 +0300
+@@ -181,6 +181,7 @@
+     private ImageView backdropLogo;
+     private TextView backdropTitle;
+     private Backdrops backdrops;
++    private Wallpapers wallpapers;   // TV Doctor: Picture of the day behind apps with no still
+     /** The dock app whose backdrop is showing or loading, or null. */
+     private String backdropPkg;
+     private TextView btnWifi;
+@@ -319,6 +320,10 @@
+         backdropTitleBox = findViewById(R.id.backdropTitleBox);
+         backdropLogo = findViewById(R.id.backdropLogo);
+         backdropTitle = findViewById(R.id.backdropTitle);
++        wallpapers = new Wallpapers(this, () -> {
++            // A new wallpaper (first one, or the 30-minute change): show it if the glow is up.
++            if (heroShown && !stillShown) fadeBackdrop(null, null, null, backdropColor);
++        });
+         backdrops = new Backdrops(this, pkg -> {
+             // The focused app was on its glow, waiting for its first still: show it now.
+             if (!heroShown || !pkg.equals(backdropPkg)) return;
+@@ -541,6 +546,7 @@
+     @Override
+     protected void onResume() {
+         super.onResume();
++        wallpapers.start();
+         lastKeyAt = SystemClock.uptimeMillis();
+         armIdle();
+         showUpdateReady();
+@@ -614,6 +620,7 @@
+     @Override
+     protected void onPause() {
+         super.onPause();
++        wallpapers.stop();
+         handler.removeCallbacks(refreshPools);
+         cancelPictureSoon();
+         handler.removeCallbacks(startSlideshow);
+@@ -647,6 +654,7 @@
+         unregisterReceiver(screenReceiver);
+         unregisterReceiver(packageReceiver);
+         backdrops.close();
++        wallpapers.close();
+         handler.removeCallbacksAndMessages(null);
+         ConnectivityManager cm = getSystemService(ConnectivityManager.class);
+         if (cm != null) {
+@@ -671,6 +679,7 @@
+         boolean due = level >= TRIM_MEMORY_BACKGROUND
+                 || level == TRIM_MEMORY_RUNNING_LOW || level == TRIM_MEMORY_RUNNING_CRITICAL;
+         if (!due || started) return;
++        wallpapers.trim();
+         adapter.clear();
+         // Detached too: with Home stopped no layout pass runs, so the tile views (and the banners they
+         // hold) would stay until Home came back. setAdapter(null) recycles them now.
+@@ -850,6 +859,22 @@
+     private void fadeBackdrop(Bitmap bitmap, Bitmap logo, String title, int color) {
+         stillShown = bitmap != null;
+         if (bitmap == null) {
++            // TV Doctor: no still of its own -> the Picture of the day instead of the plain glow.
++            Bitmap wall = wallpapers.current();
++            if (wall != null) {
++                String credit = wallpapers.credit();
++                if (backdrop.getAlpha() == 1f && backdropImage.getDrawable() instanceof android.graphics.drawable.BitmapDrawable
++                        && ((android.graphics.drawable.BitmapDrawable) backdropImage.getDrawable()).getBitmap() == wall) {
++                    ambient.animate().alpha(0f).setDuration(300).start();
++                    showBackdropTitle(null, credit);   // already showing it: no cross-fade into itself
++                    return;
++                }
++                bitmap = wall;
++                logo = null;
++                title = credit;
++            }
++        }
++        if (bitmap == null) {
+             backdrop.animate().alpha(0f).setDuration(300).withLayer().start();
+             if (ambient.getAlpha() > 0f && color != ambientColor) {
+                 // Glow to glow: dip, change colour, come back.

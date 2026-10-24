@@ -4,6 +4,7 @@ set -euo pipefail
 ID="$1"; ROOT="$(pwd)"
 J() { python3 -c "import json,sys;l={x['id']:x for x in json.load(open('lock.json'))['launchers']}['$ID'];print(l.get('$1',''))"; }
 REPO=$(J repo); COMMIT=$(J commit); KIND=$(J build); DIR=$(J dir); MOD=$(J module); PREP=$(J prep); SCRIPT=$(J script); OUT=$(J out)
+PATCH=$(J patch); PATCH_SRC=$(J patch_src)
 BT="$ANDROID_HOME/build-tools/36.0.0"
 rm -rf src
 if [ "$REPO" = "local" ]; then
@@ -13,6 +14,11 @@ else
   git init -q src && cd src
   git remote add origin "https://github.com/$REPO" && git fetch -q --depth 1 origin "$COMMIT" && git checkout -q FETCH_HEAD
   test "$(git rev-parse HEAD)" = "$COMMIT" || { echo "Коммит не совпал"; exit 1; }
+  if [ -n "$PATCH" ]; then
+    # Наши доработки поверх проверенного коммита (папка patches/ этого репозитория)
+    for p in "$ROOT/$PATCH"/*.patch; do [ -f "$p" ] && git apply --whitespace=nowarn "$p" && echo "Применён $(basename "$p")"; done
+    for f in "$ROOT/$PATCH"/*.java; do [ -f "$f" ] && cp "$f" "$PATCH_SRC/" && echo "Добавлен $(basename "$f")"; done
+  fi
   cd "$DIR"
 fi
 # Отладочный ключ, который ждут некоторые проекты (итоговый APK всё равно переподписывается нашим ключом)
