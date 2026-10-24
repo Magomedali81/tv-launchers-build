@@ -49,7 +49,8 @@ final class Wallpapers {
         void onWallpaper();
     }
 
-    static final long SLOT_MS = 10L * 60 * 1000;
+    static final long SLOT_MS = 10L * 60 * 1000;          // behind Home
+    static final long SCREENSAVER_MS = 5L * 60 * 1000;    // in the screensaver (Home left alone)
     private static final long REFRESH_MS = 6L * 60 * 60 * 1000;
     private static final long RETRY_MS = 2L * 60 * 1000;   // nothing downloaded yet: try again soon
     private static final String TAG = "VibeWallpapers";
@@ -86,6 +87,7 @@ final class Wallpapers {
     private String credit;
     private String shownName;
     private boolean decoding;
+    private long slotMs = SLOT_MS;
     private boolean started;
     private boolean closed;
     private boolean loggedStart;
@@ -130,6 +132,16 @@ final class Wallpapers {
         scheduleTick();
     }
 
+    /** How often the picture changes: SLOT_MS behind Home, SCREENSAVER_MS in the screensaver. */
+    void setInterval(long ms) {
+        if (ms == slotMs) return;
+        slotMs = ms;
+        if (started) {
+            prepare(true);
+            scheduleTick();
+        }
+    }
+
     void stop() {
         started = false;
         main.removeCallbacks(tick);
@@ -163,7 +175,7 @@ final class Wallpapers {
     private void scheduleTick() {
         main.removeCallbacks(tick);
         long now = System.currentTimeMillis();
-        long next = (now / SLOT_MS + 1) * SLOT_MS + 1000;
+        long next = (now / slotMs + 1) * slotMs + 1000;
         main.postDelayed(tick, next - now);
     }
 
@@ -172,7 +184,7 @@ final class Wallpapers {
         if (closed || decoding) return;
         final File[] files = list();
         if (files.length == 0) return;
-        final File pick = files[(int) ((System.currentTimeMillis() / SLOT_MS) % files.length)];
+        final File pick = files[(int) ((System.currentTimeMillis() / slotMs) % files.length)];
         if (pick.getName().equals(shownName) && bitmap != null) return;
         decoding = true;
         worker.execute(() -> {

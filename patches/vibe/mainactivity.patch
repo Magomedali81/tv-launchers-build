@@ -1,5 +1,5 @@
 --- a/vibe-launcher/app/src/main/java/com/maydings/vibelauncher/MainActivity.java	2026-10-24 16:25:09.151639157 +0300
-+++ b/vibe-launcher/app/src/main/java/com/maydings/vibelauncher/MainActivity.java	2026-10-24 17:22:01.313257582 +0300
++++ b/vibe-launcher/app/src/main/java/com/maydings/vibelauncher/MainActivity.java	2026-10-24 17:34:00.204637572 +0300
 @@ -181,6 +181,7 @@
      private ImageView backdropLogo;
      private TextView backdropTitle;
@@ -90,3 +90,30 @@
          if (bitmap == null) {
              backdrop.animate().alpha(0f).setDuration(300).withLayer().start();
              if (ambient.getAlpha() > 0f && color != ambientColor) {
+@@ -1507,6 +1541,7 @@
+             return;
+         }
+         slideshow = true;
++        wallpapers.setInterval(Wallpapers.SCREENSAVER_MS);
+         slidePkg = backdropPkg;
+         slideEntry = null;
+         glass.animate().alpha(0f).setDuration(CARET_FADE_MS).start();
+@@ -1527,6 +1562,10 @@
+ 
+     private void nextSlide() {
+         if (!slideshow) return;
++        if (true) {   // TV Doctor: the screensaver shows the Wikimedia wallpapers, changing every 5 minutes
++            fadeBackdrop(null, null, null, backdropColor);
++            return;
++        }
+         backdrops.randomSlide(dockApps(), slideEntry, (pkg, entry, bitmap, logo) -> {
+             if (!slideshow) return;
+             slidePkg = pkg;
+@@ -1542,6 +1581,7 @@
+      */
+     private void endSlideshow() {
+         slideshow = false;
++        wallpapers.setInterval(Wallpapers.SLOT_MS);
+         handler.removeCallbacks(nextSlide);
+         handler.removeCallbacks(letScreenOff);
+         getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
