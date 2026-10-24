@@ -14,6 +14,7 @@ final class Prefs {
     final int alpha;     // непрозрачность, %: 20..100
     final String mode;   // date | time | datetime
     final boolean enabled;
+    final boolean vpn;   // кружок состояния VPN: зелёный/красный
 
     private Prefs(SharedPreferences p) {
         corner = oneOf(p.getString("corner", "tr"), CORNERS, "tr");
@@ -21,6 +22,7 @@ final class Prefs {
         alpha = clamp(p.getInt("alpha", 90), 20, 100);
         mode = oneOf(p.getString("mode", "date"), MODES, "date");
         enabled = p.getBoolean("enabled", false);
+        vpn = p.getBoolean("vpn", true);
     }
 
     static Prefs load(Context c) {

@@ -112,10 +112,11 @@
    "perms": [
     "android.permission.SYSTEM_ALERT_WINDOW",
     "android.permission.RECEIVE_BOOT_COMPLETED",
-    "android.permission.FOREGROUND_SERVICE"
+    "android.permission.FOREGROUND_SERVICE",
+    "android.permission.ACCESS_NETWORK_STATE"
    ],
    "hosts": [],
-   "audit": "Собственный код (папка tvclock этого репозитория). Нет интернета. Окно поверх экрана с датой/временем, обновление раз в минуту. Настройки принимает только от ADB (защита разрешением DUMP)."
+   "audit": "Собственный код (папка tvclock этого репозитория). Нет интернета. Окно поверх экрана с датой/временем, обновление раз в минуту; кружок состояния VPN (зелёный/красный) — только чтение состояния сети. Настройки принимает только от ADB (защита разрешением DUMP)."
   }
  ]
 }

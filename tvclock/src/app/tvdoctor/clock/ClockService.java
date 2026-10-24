@@ -10,6 +10,12 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.graphics.PixelFormat;
 import android.graphics.Typeface;
+import android.net.ConnectivityManager;
+import android.net.Network;
+import android.net.NetworkCapabilities;
+import android.net.NetworkRequest;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.IBinder;
 import android.provider.Settings;
 import android.text.format.DateFormat;
@@ -21,7 +27,9 @@ import android.view.WindowManager;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import java.net.NetworkInterface;
 import java.text.SimpleDateFormat;
+import java.util.Collections;
 import java.util.Date;
 import java.util.Locale;
 
@@ -34,6 +42,26 @@ public class ClockService extends Service {
     private WindowManager wm;
     private LinearLayout box;
     private TextView big, small;
+    private LinearLayout row;
+    private VpnDot vpn;
+    private ConnectivityManager cm;
+    private final Handler main = new Handler(Looper.getMainLooper());
+    private final java.util.Set<Network> vpnNets = new java.util.HashSet<>();
+
+    /** Сеть VPN появилась или пропала — проверяем сразу, не дожидаясь следующей минуты. */
+    private final ConnectivityManager.NetworkCallback netCb = new ConnectivityManager.NetworkCallback() {
+        @Override
+        public void onAvailable(Network n) {
+            synchronized (vpnNets) { vpnNets.add(n); }
+            main.post(ClockService.this::updateVpn);
+        }
+
+        @Override
+        public void onLost(Network n) {
+            synchronized (vpnNets) { vpnNets.remove(n); }
+            main.post(ClockService.this::updateVpn);
+        }
+    };
     private boolean attached;
     private Prefs prefs;
 
@@ -66,8 +94,23 @@ public class ClockService extends Service {
         box.setOrientation(LinearLayout.VERTICAL);
         big = label(Typeface.create("sans-serif-medium", Typeface.NORMAL));
         small = label(Typeface.create("sans-serif", Typeface.NORMAL));
-        box.addView(big);
+        vpn = new VpnDot(this);
+        vpn.setVisibility(View.GONE);
+        row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.addView(big);
+        box.addView(row);
         box.addView(small);
+        cm = getSystemService(ConnectivityManager.class);
+        try {
+            cm.registerNetworkCallback(new NetworkRequest.Builder()
+                    .addTransportType(NetworkCapabilities.TRANSPORT_VPN)
+                    .removeCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN)
+                    .build(), netCb);
+        } catch (RuntimeException ignored) {
+            // без обратного вызова — проверка раз в минуту
+        }
 
         IntentFilter f = new IntentFilter(Intent.ACTION_TIME_TICK);
         f.addAction(Intent.ACTION_TIME_CHANGED);
@@ -116,6 +159,13 @@ public class ClockService extends Service {
         big.setGravity(h);
         small.setGravity(h);
         box.setAlpha(prefs.alpha / 100f);
+        // Кружок VPN — с внутренней стороны от первой строки
+        row.removeView(vpn);
+        int dotPx = Math.round(bigSp * getResources().getDisplayMetrics().scaledDensity * 0.5f);
+        LinearLayout.LayoutParams ip = new LinearLayout.LayoutParams(dotPx, dotPx);
+        int gap = Math.round(dotPx * 0.45f);
+        if (right) ip.rightMargin = gap; else ip.leftMargin = gap;
+        row.addView(vpn, right ? 0 : 1, ip);
 
         DisplayMetrics dm = getResources().getDisplayMetrics();
         WindowManager.LayoutParams lp = new WindowManager.LayoutParams(
@@ -142,8 +192,38 @@ public class ClockService extends Service {
         }
     }
 
+    /** VPN работает? Три способа: сети VPN системы, их обратный вызов и интерфейсы tun/wg (видны всегда,
+     *  даже если часы не входят в раздельное туннелирование). */
+    private boolean vpnOn() {
+        synchronized (vpnNets) {
+            if (!vpnNets.isEmpty()) return true;
+        }
+        try {
+            for (Network n : cm.getAllNetworks()) {
+                NetworkCapabilities nc = cm.getNetworkCapabilities(n);
+                if (nc != null && nc.hasTransport(NetworkCapabilities.TRANSPORT_VPN)) return true;
+            }
+        } catch (RuntimeException ignored) {
+        }
+        try {
+            for (NetworkInterface i : Collections.list(NetworkInterface.getNetworkInterfaces())) {
+                String n = i.getName();
+                if (i.isUp() && n != null && n.matches("(tun|tap|ppp|wg|awg|utun|ipsec)\\d+")) return true;
+            }
+        } catch (Exception ignored) {
+        }
+        return false;
+    }
+
+    private void updateVpn() {
+        if (prefs == null || vpn == null) return;
+        vpn.setVisibility(prefs.vpn ? View.VISIBLE : View.GONE);
+        if (prefs.vpn) vpn.setOn(vpnOn());
+    }
+
     private void render() {
         if (prefs == null) return;
+        updateVpn();
         Date now = new Date();
         Locale loc = Locale.getDefault();
         String time = DateFormat.is24HourFormat(this)
@@ -173,6 +253,10 @@ public class ClockService extends Service {
     public void onDestroy() {
         try {
             unregisterReceiver(tick);
+        } catch (RuntimeException ignored) {
+        }
+        try {
+            cm.unregisterNetworkCallback(netCb);
         } catch (RuntimeException ignored) {
         }
         if (attached) {
