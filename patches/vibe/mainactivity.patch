@@ -1,5 +1,5 @@
 --- a/vibe-launcher/app/src/main/java/com/maydings/vibelauncher/MainActivity.java	2026-10-24 16:25:09.151639157 +0300
-+++ b/vibe-launcher/app/src/main/java/com/maydings/vibelauncher/MainActivity.java	2026-10-24 16:53:07.474377974 +0300
++++ b/vibe-launcher/app/src/main/java/com/maydings/vibelauncher/MainActivity.java	2026-10-24 17:22:01.313257582 +0300
 @@ -181,6 +181,7 @@
      private ImageView backdropLogo;
      private TextView backdropTitle;
@@ -55,7 +55,7 @@
          if (pkg.equals(backdropPkg)) return;
          backdropPkg = pkg;
          backdropColor = color;
-+        if (wallpapers.current() != null) {   // TV Doctor: wallpapers instead of the app's stills
++        if (true) {   // TV Doctor: only the Wikimedia wallpapers, never the app's trailers and posters
 +            backdropLink = null;
 +            fadeBackdrop(null, null, null, color);
 +            return;
@@ -63,13 +63,17 @@
          backdrops.load(pkg, (loaded, bitmap, logo, title, link) -> {
              if (!heroShown || !loaded.equals(backdropPkg)) return;   // moved on while it loaded
              backdropLink = bitmap != null ? link : null;
-@@ -849,6 +863,22 @@
+@@ -849,6 +863,26 @@
      /** Shows a still (cross-fading from the one before, if any), or the glow in this colour. */
      private void fadeBackdrop(Bitmap bitmap, Bitmap logo, String title, int color) {
          stillShown = bitmap != null;
 +        {
 +            // TV Doctor: always the Picture of the day (not the apps' trailers and posters) once one is in.
 +            Bitmap wall = wallpapers.current();
++            if (wall == null && bitmap != null) {   // an app's still (slideshow, picture alone): the glow instead
++                fadeBackdrop(null, null, null, color);
++                return;
++            }
 +            if (wall != null && bitmap != wall) {
 +                String credit = wallpapers.credit();
 +                if (backdrop.getAlpha() == 1f && backdropImage.getDrawable() instanceof android.graphics.drawable.BitmapDrawable

@@ -10,6 +10,7 @@ import android.graphics.Rect;
 import android.graphics.Shader;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 
 import org.json.JSONObject;
 
@@ -50,7 +51,8 @@ final class Wallpapers {
 
     static final long SLOT_MS = 10L * 60 * 1000;
     private static final long REFRESH_MS = 6L * 60 * 60 * 1000;
-    private static final long RETRY_MS = 15L * 60 * 1000;
+    private static final long RETRY_MS = 2L * 60 * 1000;   // nothing downloaded yet: try again soon
+    private static final String TAG = "VibeWallpapers";
     private static final int DAYS = 30;
     private static final int MAX_JSON = 2 * 1024 * 1024;
     private static final int MAX_IMAGE = 12 * 1024 * 1024;
@@ -75,6 +77,7 @@ final class Wallpapers {
     });
     private final File dir;
     private final File stamp;
+    private final File status;   // a short log TV Doctor reads over ADB (Android/data/<pkg>/files)
     private final int width, height;
     private final Listener listener;
 
@@ -85,6 +88,7 @@ final class Wallpapers {
     private boolean decoding;
     private boolean started;
     private boolean closed;
+    private boolean loggedStart;
     private volatile boolean refreshing;
 
     private final Runnable tick = new Runnable() {
@@ -100,6 +104,13 @@ final class Wallpapers {
         this.listener = listener;
         dir = new File(context.getFilesDir(), "wallpapers");
         stamp = new File(dir, ".refreshed");
+        File ext = null;
+        try {
+            ext = context.getExternalFilesDir(null);
+        } catch (RuntimeException ignored) {
+            // no shared storage
+        }
+        status = ext != null ? new File(ext, "wallpapers-status.txt") : null;
         int w = context.getResources().getDisplayMetrics().widthPixels;
         int h = context.getResources().getDisplayMetrics().heightPixels;
         width = Math.max(w, h);
@@ -110,6 +121,10 @@ final class Wallpapers {
     void start() {
         if (closed) return;
         started = true;
+        if (!loggedStart) {
+            loggedStart = true;
+            log("start: " + list().length + " wallpapers on disk");
+        }
         refreshIfDue();
         prepare(true);
         scheduleTick();
@@ -162,6 +177,7 @@ final class Wallpapers {
         decoding = true;
         worker.execute(() -> {
             Bitmap b = decodeDarkened(pick);
+            if (b == null) log("decode failed " + pick.getName());
             String c = readCredit(pick);
             main.post(() -> {
                 decoding = false;
@@ -212,6 +228,7 @@ final class Wallpapers {
         Calendar day = Calendar.getInstance(utc);
         List<String> keep = new ArrayList<>();
         int added = 0, failures = 0;
+        log("refresh start, have " + list().length + ", screen " + width + "x" + height);
         for (int i = 0; i < DAYS && failures < 3; i++) {
             String stem = "potd-" + name.format(day.getTime());
             keep.add(stem);
@@ -219,10 +236,20 @@ final class Wallpapers {
             File skip = new File(dir, stem + ".skip");
             if (!jpg.exists() && !skip.exists()) {
                 try {
-                    if (fetchDay(path.format(day.getTime()), jpg)) added++;
-                    else touch(skip);
+                    if (fetchDay(path.format(day.getTime()), jpg)) {
+                        added++;
+                        log("saved " + jpg.getName());
+                        // The first picture shows at once, not after the whole month is in.
+                        main.post(() -> {
+                            if (!closed && bitmap == null) prepare(true);
+                        });
+                    } else {
+                        touch(skip);
+                        log("skipped " + stem + " (portrait or small)");
+                    }
                 } catch (IOException | RuntimeException e) {
                     failures++;   // offline, or the feed changed: try again on the next refresh
+                    log("failed " + stem + ": " + e);
                 }
             }
             day.add(Calendar.DAY_OF_MONTH, -1);
@@ -238,6 +265,7 @@ final class Wallpapers {
         }
         if (failures == 0 || added > 0) touch(stamp);
         else if (list().length > 0) touch(stamp);   // offline but have pictures: no hurry
+        log("refresh done: +" + added + ", failures " + failures + ", have " + list().length);
         return added;
     }
 
@@ -397,6 +425,33 @@ final class Wallpapers {
             return s.isEmpty() ? null : s;
         } catch (IOException e) {
             return null;
+        }
+    }
+
+    private synchronized void log(String line) {
+        Log.i(TAG, line);
+        if (status == null) return;
+        try {
+            String old = "";
+            if (status.exists() && status.length() < 16384) {
+                try (java.io.FileInputStream in = new java.io.FileInputStream(status)) {
+                    old = new String(Http.readAll(in, 16384), StandardCharsets.UTF_8);
+                }
+            }
+            String[] lines = old.split("\n");
+            StringBuilder b = new StringBuilder();
+            for (int i = Math.max(0, lines.length - 80); i < lines.length; i++) {
+                if (!lines[i].isEmpty()) b.append(lines[i]).append('\n');
+            }
+            b.append(new SimpleDateFormat("MM-dd HH:mm:ss", Locale.US).format(new java.util.Date()))
+                    .append(' ').append(line).append('\n');
+            //noinspection ResultOfMethodCallIgnored
+            status.getParentFile().mkdirs();
+            try (FileOutputStream f = new FileOutputStream(status)) {
+                f.write(b.toString().getBytes(StandardCharsets.UTF_8));
+            }
+        } catch (IOException | RuntimeException ignored) {
+            // the log is only for diagnosis
         }
     }
 
