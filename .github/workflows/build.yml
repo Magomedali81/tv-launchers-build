@@ -1,0 +1,61 @@
+name: build-launchers
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [lock.json, scripts/**, .github/workflows/build.yml]
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        id: [cosyhome, myo, cleantv, glassos]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: "17" }
+      - uses: gradle/actions/setup-gradle@v4
+        with: { gradle-version: "8.9" }
+      - name: Android SDK
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-34" "platforms;android-35" "build-tools;34.0.0" "build-tools;36.0.0" > /dev/null
+      - name: Signing key
+        env: { KS_B64: "${{ secrets.KEYSTORE_B64 }}", KS_PASS_SECRET: "${{ secrets.KEYSTORE_PASS }}" }
+        run: |
+          if [ -n "$KS_B64" ] && [ -n "$KS_PASS_SECRET" ]; then
+            echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/ks.jks"
+            echo "KS_PASS=$KS_PASS_SECRET" >> "$GITHUB_ENV"
+          else
+            echo "::warning::Нет секретов KEYSTORE_B64/KEYSTORE_PASS — пробная сборка с временным ключом, в релиз не попадёт"
+            keytool -genkeypair -keystore "$RUNNER_TEMP/ks.jks" -storepass testtest -keypass testtest -alias tvdoctor -dname "CN=TEST" -keyalg RSA -keysize 2048 -validity 30
+            echo "KS_PASS=testtest" >> "$GITHUB_ENV"
+            mkdir -p out && touch out/TEST_BUILD
+          fi
+      - name: Build + scan
+        env:
+          KS_FILE: ${{ runner.temp }}/ks.jks
+        run: scripts/build_one.sh ${{ matrix.id }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: "${{ matrix.id }}", path: "out/", if-no-files-found: ignore }
+  release:
+    needs: build
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { path: dist, merge-multiple: true }
+      - name: Publish only builds that passed the scan
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          cd dist; ls -la
+          if [ -f TEST_BUILD ]; then echo "::warning::Пробная сборка (временный ключ) — релиз не публикуется"; exit 0; fi
+          files=""
+          for r in *.report.json; do id="${r%.report.json}"
+            if python3 -c "import json,sys;sys.exit(0 if json.load(open('$r'))['ok'] else 1)" && [ -f "$id.apk" ]; then files="$files $id.apk $id.apk.sha256 $r"; else echo "::warning::$id не прошёл проверку — в релиз не попадёт"; fi
+          done
+          [ -n "$files" ] || { echo "Нечего публиковать"; exit 1; }
+          gh release delete latest -y --cleanup-tag -R "$GITHUB_REPOSITORY" || true
+          gh release create latest $files -R "$GITHUB_REPOSITORY" --title "Лаунчеры (проверено)" --notes "Собрано из закреплённых коммитов (lock.json), каждый APK прошёл автоматическую проверку. Отчёты — файлы *.report.json."
