@@ -55,13 +55,17 @@ DANGER = {
     "майнинг": r"(?i)stratum\+tcp|xmrig|cryptonight|coinhive|monero|nicehash|minerd",
     "SMS/звонки/контакты": r"Landroid/telephony/SmsManager;|Landroid/provider/(ContactsContract|CallLog)",
     "запись звука/экрана/камера": r"Landroid/media/(AudioRecord|MediaRecorder);|Landroid/media/projection/|Landroid/hardware/camera2?/",
-    "идентификаторы устройства": r"getDeviceId|getSubscriberId|getImei|getMacAddress",
+    # getDeviceId сам по себе есть и у KeyEvent/InputDevice (пульт), поэтому — только вместе с TelephonyManager
+    "идентификаторы устройства": r"Landroid/telephony/TelephonyManager;|getSubscriberId|getImei|getMacAddress|getSerial$",
     "учётные записи": r"Landroid/accounts/AccountManager;",
 }
-found = {k: bool(re.search(v, blob)) for k, v in DANGER.items()}
+found = {k: bool(re.search(v, blob, re.M)) for k, v in DANGER.items()}
 for k, v in found.items():
     if v:
-        problems.append("Обнаружено: " + k)
+        hits = sorted(x for x in strings if re.search(DANGER[k], x))[:3]
+        problems.append("Обнаружено: %s (%s)" % (k, "; ".join(h[:80] for h in hits)))
+if "getDeviceId" in strings and not found["идентификаторы устройства"]:
+    notes.append("getDeviceId без TelephonyManager — это номер устройства ввода (пульт), не идентификатор ТВ")
 
 report = {"id": lid, "name": lock["name"], "pkg": lock["pkg"], "commit": lock["commit"], "repo": lock["repo"],
           "permissions": perms, "hosts": [h for h in hosts if h not in SAFE_HOSTS], "native_libs": native,
