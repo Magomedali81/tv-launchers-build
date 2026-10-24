@@ -3,7 +3,7 @@
 set -euo pipefail
 ID="$1"; ROOT="$(pwd)"
 J() { python3 -c "import json,sys;l={x['id']:x for x in json.load(open('lock.json'))['launchers']}['$ID'];print(l.get('$1',''))"; }
-REPO=$(J repo); COMMIT=$(J commit); KIND=$(J build); DIR=$(J dir); MOD=$(J module); PREP=$(J prep)
+REPO=$(J repo); COMMIT=$(J commit); KIND=$(J build); DIR=$(J dir); MOD=$(J module); PREP=$(J prep); SCRIPT=$(J script); OUT=$(J out)
 BT="$ANDROID_HOME/build-tools/36.0.0"
 rm -rf src && git init -q src && cd src
 git remote add origin "https://github.com/$REPO" && git fetch -q --depth 1 origin "$COMMIT" && git checkout -q FETCH_HEAD
@@ -19,8 +19,8 @@ if [ "$KIND" = "gradle" ]; then
   gradle --no-daemon -q ":$MOD:assembleRelease"
   APK=$(ls "$MOD"/build/outputs/apk/release/*.apk | head -1)
 else
-  bash "$(J script)"
-  APK="$(J out)"
+  bash "$SCRIPT"
+  APK="$OUT"
 fi
 cd "$ROOT"; mkdir -p out
 "$BT/zipalign" -f -p 4 "src/$DIR/$APK" "out/$ID.aligned.apk"
